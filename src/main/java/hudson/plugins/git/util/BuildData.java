@@ -58,6 +58,12 @@ public class BuildData implements Action, Serializable, Cloneable {
      */
     public String scmName;
 
+
+    /**
+     * Last commit id in all branches
+     */
+    public String lastCommit4AllBranches;
+
     /**
      * The URLs that have been referenced.
      */
@@ -275,6 +281,8 @@ public class BuildData implements Action, Serializable, Cloneable {
             clone.addRemoteUrl(remoteUrl);
         }
 
+        clone.lastCommit4AllBranches = lastCommit4AllBranches;
+
         return clone;
     }
 
@@ -288,6 +296,7 @@ public class BuildData implements Action, Serializable, Cloneable {
         return super.toString()+"[scmName="+scmNameString+
                 ",remoteUrls="+remoteUrls+
                 ",buildsByBranchName="+buildsByBranchName+
+                ",lastCommit4AllBranches="+lastCommit4AllBranches+
                 ",lastBuild="+lastBuild+"]";
     }
 
@@ -340,7 +349,9 @@ public class BuildData implements Action, Serializable, Cloneable {
         if (this.lastBuild == null ? that.lastBuild != null : !this.lastBuild.equals(that.lastBuild)) {
             return false;
         }
-        Set<String> thisUrls = new HashSet<>(this.remoteUrls.size());
+        if (this.lastCommit4AllBranches == null ? that.lastCommit4AllBranches != null : !this.lastCommit4AllBranches.equals(that.lastCommit4AllBranches)) {
+            return false;
+        }        Set<String> thisUrls = new HashSet<>(this.remoteUrls.size());
         for (String url: this.remoteUrls) {
             thisUrls.add(normalize(url));
         }
@@ -370,6 +381,11 @@ public class BuildData implements Action, Serializable, Cloneable {
             return false;
         }
 
+        /* Not equal if remoteUrls differ */
+        if ((this.lastCommit4AllBranches != null) && (otherBuildData.lastCommit4AllBranches != null)
+                && !this.lastCommit4AllBranches.equals(otherBuildData.lastCommit4AllBranches)) {
+            return false;
+        }
         /* Not equal if exactly one of the two buildsByBranchName is null */
         if ((this.buildsByBranchName == null) ^ (otherBuildData.buildsByBranchName == null)) {
             return false;
@@ -400,6 +416,7 @@ public class BuildData implements Action, Serializable, Cloneable {
         result = result * 17 + ((this.remoteUrls == null) ? 5 : this.remoteUrls.hashCode());
         result = result * 17 + ((this.buildsByBranchName == null) ? 7 : this.buildsByBranchName.hashCode());
         result = result * 17 + ((this.lastBuild == null) ? 11 : this.lastBuild.hashCode());
+        result = result * 17 + ((this.lastCommit4AllBranches == null) ? 13 : this.lastCommit4AllBranches.hashCode());
         return result;
     }
 

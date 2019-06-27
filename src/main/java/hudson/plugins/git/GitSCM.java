@@ -1349,11 +1349,51 @@ public class GitSCM extends GitSCMBackwardCompatibility {
                 // if we force the changelog, it'll contain all the changes in the repo, which is not what we want.
                 listener.getLogger().println("First time build. Skipping changelog.");
             } else {
-                changelog.to(out).max(MAX_CHANGELOG).execute();
+                GetFirstCommitWriter fout = new GetFirstCommitWriter(out);
+                changelog.to(fout).max(MAX_CHANGELOG).execute();
+                computeChangeLog4AllBranches(git, listener, previousBuildData, changelogFile, context, fout.getFirstCommitRev());
                 executed = true;
             }
         } catch (GitException ge) {
             ge.printStackTrace(listener.error("Unable to retrieve changeset"));
+        } finally {
+            if (!executed) changelog.abort();
+        }
+    }
+
+    private void computeChangeLog4AllBranches(GitClient git, TaskListener listener, BuildData previousBuildData,
+                                              FilePath changelogFile, BuildChooserContext context, String firstChangeLogRev) throws IOException, InterruptedException {
+        BuildData curBuildData = getBuildData(context.getBuild());
+        String lastRev4All = previousBuildData.lastCommit4AllBranches;
+        int max_changelog = MAX_CHANGELOG;
+        if (lastRev4All == null || lastRev4All.trim().length()==0) {
+            curBuildData.lastCommit4AllBranches = firstChangeLogRev;
+            max_changelog = 100;
+        }
+
+        boolean executed = false;
+        ChangelogCommand changelog = git.changelog();
+        for (Branch b : git.getBranches()) {
+            changelog.includes(b.getSHA1());
+        }
+
+        FilePath fp = new FilePath(changelogFile.getParent(), "all-branches-changelog.xml");
+        try (RevValveWriter out = new RevValveWriter(new OutputStreamWriter(fp.write(), "UTF-8"))) {
+            out.addCloseValveRev(lastRev4All);
+            for (Branch b : git.getBranches()) {
+                Build lastRevWas = getBuildChooser().prevBuildForChangelog(b.getName(), previousBuildData, git, context);
+
+                if (lastRevWas != null && lastRevWas.revision != null && git.isCommitInRepo(lastRevWas.getSHA1())) {
+                    changelog.excludes(lastRevWas.getSHA1());
+                    out.addCloseValveRev(lastRevWas.revision.getSha1String());
+                }
+            }
+
+            changelog.to(out).max(max_changelog).execute();
+            curBuildData.lastCommit4AllBranches = out.getFirstCommitRev();
+            executed = true;
+        } catch (GitException ge) {
+            ge.printStackTrace(listener.error("Unable to retrieve all branches changeset"));
         } finally {
             if (!executed) changelog.abort();
         }
