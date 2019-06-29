@@ -1351,6 +1351,7 @@ public class GitSCM extends GitSCMBackwardCompatibility {
             } else {
                 changelog.to(out).max(MAX_CHANGELOG).execute();
                 executed = true;
+                AllBranchesChangelog.getAllBranchesChangelog(git, changelogFile);
             }
         } catch (GitException ge) {
             ge.printStackTrace(listener.error("Unable to retrieve changeset"));

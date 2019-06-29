@@ -32,7 +32,7 @@ public class GitChangeLogParser extends ChangeLogParser {
         super();
         this.authorOrCommitter = authorOrCommitter;
     }
-    
+
     public List<GitChangeSet> parse(@Nonnull InputStream changelog) throws IOException {
         return parse(IOUtils.readLines(changelog, "UTF-8"));
     }
@@ -42,14 +42,23 @@ public class GitChangeLogParser extends ChangeLogParser {
     }
 
     @Override public GitChangeSetList parse(Run build, RepositoryBrowser<?> browser, File changelogFile)
-        throws IOException, SAXException {
+            throws IOException, SAXException {
         // Parse the log file into GitChangeSet items - each one is a commit
+        File allBranchesChangelogFile = new File(changelogFile.getParentFile(), "all-branches-changelog.xml");
         LineIterator lineIterator = null;
+        LineIterator allBranchesLineIterator = null;
+        final boolean parseAll = allBranchesChangelogFile.exists();
         try {
-        	lineIterator = FileUtils.lineIterator(changelogFile,"UTF-8");
-        	return new GitChangeSetList(build, browser, parse(lineIterator));
+            lineIterator = FileUtils.lineIterator(changelogFile,"UTF-8");
+            GitChangeSetList all = null;
+            if (parseAll) {
+                allBranchesLineIterator = FileUtils.lineIterator(allBranchesChangelogFile,"UTF-8");
+                all = new GitChangeSetList(build, browser, parse(allBranchesLineIterator));
+            }
+            return new AllGitChangeSetList(build, browser, parse(lineIterator), all);
         } finally {
-        	LineIterator.closeQuietly(lineIterator);
+            LineIterator.closeQuietly(lineIterator);
+            if (parseAll)LineIterator.closeQuietly(allBranchesLineIterator);
         }
     }
 
